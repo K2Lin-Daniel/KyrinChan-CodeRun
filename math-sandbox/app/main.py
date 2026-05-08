@@ -39,7 +39,7 @@ try:
     resource.setrlimit(resource.RLIMIT_CPU, (MAX_CPU_TIME, MAX_CPU_TIME))
 
     # Prevent fork bombs
-    resource.setrlimit(resource.RLIMIT_NPROC, (0, 0))
+    # resource.setrlimit(resource.RLIMIT_NPROC, (0, 0))
 except Exception as e:
     print(f"Warning: Failed to set resource limits: {{e}}", file=sys.stderr)
 
