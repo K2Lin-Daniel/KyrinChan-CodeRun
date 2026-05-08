@@ -1,0 +1,44 @@
+services:
+  math-sandbox:
+    build: .
+    ports:
+      - "8000:8000"
+
+    # 5-level protection:
+    # 1. Non-root user (configured in Dockerfile)
+    # 2. Linux Resource Limit (configured in main.py via resource module)
+    # 3. Python subprocess isolation (configured in main.py)
+    # 4. Docker container limits (pids, memory, cpus, read_only, drop capabilities)
+    # 5. Network isolation (internal network)
+
+    # Restrict container capabilities
+    cap_drop:
+      - ALL
+
+    # Read-only root filesystem to prevent tampering
+    read_only: true
+
+    # Provide a temporary writable filesystem for the app to write temp code files
+    tmpfs:
+      - /tmp
+
+    # Limit container resources
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+          pids: 50
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Network restriction
+    networks:
+      - sandbox_net
+
+networks:
+  sandbox_net:
+    # Set internal: true to block external network access.
+    # To allow network access, change internal to false.
+    internal: true
