@@ -7,7 +7,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/math-sandbox # 镜像名称
+  IMAGE_NAME: ${{ github.repository_owner }}/kyrin-codeengine # 镜像名称
 
 jobs:
   build:
@@ -39,8 +39,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./math-sandbox # 设置构建上下文为子目录
-          file: ./math-sandbox/Dockerfile # 指定 Dockerfile 位置
+          context: ./python-sandbox # 设置构建上下文为子目录
+          file: ./python-sandbox/Dockerfile # 指定 Dockerfile 位置
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
