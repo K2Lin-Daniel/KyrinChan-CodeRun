@@ -58,31 +58,53 @@ except Exception:
         runner_file.write(runner_script)
         runner_file_path = runner_file.name
 
+    stdout_file = tempfile.NamedTemporaryFile(mode="w+", delete=False)
+    stderr_file = tempfile.NamedTemporaryFile(mode="w+", delete=False)
+
     try:
         process = subprocess.Popen(
             ["python", runner_file_path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=stdout_file,
+            stderr=stderr_file,
             text=True
         )
 
         try:
             # Wall-clock timeout is slightly longer than CPU time limit
-            stdout, stderr = process.communicate(timeout=request.timeout + 1)
+            process.wait(timeout=request.timeout + 1)
             exit_code = process.returncode
         except subprocess.TimeoutExpired:
             process.kill()
-            stdout, stderr = process.communicate()
+            process.wait()
             exit_code = 137 # Standard exit code for SIGKILL
-            stderr += "\nExecution timed out (Wall-clock limit reached)."
+            with open(stderr_file.name, "a") as f:
+                f.write("\nExecution timed out (Wall-clock limit reached).")
+
+        MAX_OUTPUT_LENGTH = 100000
+
+        def read_limited_output(file_path):
+            with open(file_path, "r") as f:
+                content = f.read(MAX_OUTPUT_LENGTH + 1)
+                if len(content) > MAX_OUTPUT_LENGTH:
+                    return content[:MAX_OUTPUT_LENGTH] + "\n...[Output truncated due to length limit]..."
+                return content
+
+        stdout = read_limited_output(stdout_file.name)
+        stderr = read_limited_output(stderr_file.name)
 
     except Exception as e:
         return CodeResponse(stdout="", stderr=str(e), exit_code=-1)
     finally:
+        stdout_file.close()
+        stderr_file.close()
         if os.path.exists(code_file_path):
             os.remove(code_file_path)
         if os.path.exists(runner_file_path):
             os.remove(runner_file_path)
+        if os.path.exists(stdout_file.name):
+            os.remove(stdout_file.name)
+        if os.path.exists(stderr_file.name):
+            os.remove(stderr_file.name)
 
     return CodeResponse(stdout=stdout, stderr=stderr, exit_code=exit_code)
 
