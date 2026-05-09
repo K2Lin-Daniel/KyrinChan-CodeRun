@@ -1,22 +1,12 @@
 import os
 import subprocess
 import tempfile
-from fastapi import FastAPI
-from pydantic import BaseModel
+from fastapi import APIRouter
+from models.schemas import CodeRequest, CodeResponse
 
-app = FastAPI(title="Math Sandbox API", description="A secure environment for executing Python code.")
+router = APIRouter()
 
-class CodeRequest(BaseModel):
-    code: str
-    timeout: int = 5 # seconds
-    memory_limit_mb: int = 256
-
-class CodeResponse(BaseModel):
-    stdout: str
-    stderr: str
-    exit_code: int
-
-@app.post("/execute", response_model=CodeResponse)
+@router.post("/execute", response_model=CodeResponse)
 def execute_code(request: CodeRequest):
     code = request.code
 
@@ -107,7 +97,3 @@ except Exception:
             os.remove(stderr_file.name)
 
     return CodeResponse(stdout=stdout, stderr=stderr, exit_code=exit_code)
-
-@app.get("/health")
-def health_check():
-    return {"status": "ok"}
