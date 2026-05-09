@@ -4,3 +4,15 @@ pydantic
 numpy
 sympy
 scipy
+PuLP
+networkx
+shapely
+boolean.py
+Pint
+geopy
+skyfield
+z3-solver
+chempy
+mendeleev
+pymatgen
+chemlib
