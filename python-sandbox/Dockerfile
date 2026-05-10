@@ -24,7 +24,18 @@ RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 
-# Stage 2: Runtime
+# Stage 2: Ephemeris downloader
+FROM python:3.11-slim as ephemeris_downloader
+
+WORKDIR /ephemeris
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+RUN curl -o de440.bsp https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de440.bsp && \
+    curl -o de421.bsp https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de421.bsp
+
+
+# Stage 3: Runtime
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -44,6 +55,9 @@ COPY app/ /app/
 
 # Ensure the sandbox user has permissions for the app directory
 RUN chown -R sandboxuser:sandboxuser /app
+
+# Copy ephemerides as an independent layer (after chown to prevent layer duplication)
+COPY --from=ephemeris_downloader --chown=sandboxuser:sandboxuser /ephemeris /app/ephemeris
 
 # Switch to the non-root user
 USER sandboxuser
