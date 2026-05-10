@@ -57,7 +57,7 @@ COPY app/ /app/
 RUN chown -R sandboxuser:sandboxuser /app
 
 # Copy ephemerides as an independent layer (after chown to prevent layer duplication)
-COPY --from=ephemeris_downloader --chown=sandboxuser:sandboxuser /ephemeris /app/ephemeris
+COPY --from=ephemeris_downloader --chown=sandboxuser:sandboxuser /ephemeris/ /app/
 
 # Switch to the non-root user
 USER sandboxuser
