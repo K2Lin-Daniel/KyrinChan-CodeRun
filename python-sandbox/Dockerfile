@@ -51,12 +51,9 @@ WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 
 # Copy application code
-COPY app/ /app/
+COPY --chown=sandboxuser:sandboxuser app/ /app/
 
-# Ensure the sandbox user has permissions for the app directory
-RUN chown -R sandboxuser:sandboxuser /app
-
-# Copy ephemerides as an independent layer (after chown to prevent layer duplication)
+# Copy ephemerides as an independent layer
 COPY --from=ephemeris_downloader --chown=sandboxuser:sandboxuser /ephemeris/ /app/
 
 # Switch to the non-root user

@@ -16,3 +16,6 @@ chempy
 mendeleev
 pymatgen
 chemlib
+matplotlib
+pandas
+openpyxl
