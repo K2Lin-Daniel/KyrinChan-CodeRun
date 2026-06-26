@@ -46,7 +46,7 @@ RUN curl -sS -L -o fonts/NotoSansSC-Regular.ttf "https://cdn.jsdelivr.net/fontso
     curl -sS -L -o fonts/NotoSansSC-Bold.ttf "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-sc@latest/chinese-simplified-700-normal.ttf"
 
 # Download static Symbola font directly for vector-based emoji fallback
-RUN curl -sS -L -o fonts/Symbola.ttf "https://github.com/zhm/symbola/raw/master/Symbola.ttf"
+RUN curl -sS -L -o fonts/Symbola.ttf "https://github.com/zhm/symbola/raw/master/fonts/Symbola.ttf"
 
 
 # Stage 3: Runtime
