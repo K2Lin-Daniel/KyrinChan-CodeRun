@@ -94,6 +94,9 @@ except Exception:
         stdout_file = open(stdout_file_path, "w+", encoding="utf-8")
         stderr_file = open(stderr_file_path, "w+", encoding="utf-8")
 
+        # Setup environment variables for the subprocess
+        env = os.environ.copy()
+        env["MPLBACKEND"] = "Agg"
         mpl_config_dir = os.path.join(run_dir, ".matplotlib")
         env["MPLCONFIGDIR"] = mpl_config_dir
 

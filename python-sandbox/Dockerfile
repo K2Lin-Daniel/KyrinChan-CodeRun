@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -25,7 +25,7 @@ RUN pip install --upgrade pip && \
 
 
 # Stage 2: Ephemeris downloader
-FROM python:3.11-slim as ephemeris_downloader
+FROM python:3.11-slim AS ephemeris_downloader
 
 WORKDIR /ephemeris
 RUN apt-get update && \
