@@ -51,6 +51,9 @@ RUN curl -sS -L -f -o fonts/Symbola.ttf "https://github.com/ChiefMikeK/ttf-symbo
 # Install fonttools, copy merge script and merge fonts into SandboxFont.ttf
 RUN pip install --no-cache-dir fonttools
 COPY merge_fonts.py .
+RUN python -c "from fontTools.ttLib import TTFont; \
+    for p in ['fonts/Outfit-Regular.ttf', 'fonts/NotoSansSC-Regular.ttf', 'fonts/Symbola.ttf']: \
+        f = TTFont(p); print(p, repr(f.sfntVersion), list(f.keys()))"
 RUN python merge_fonts.py fonts/SandboxFont.ttf fonts/Outfit-Regular.ttf fonts/NotoSansSC-Regular.ttf fonts/Symbola.ttf
 
 
