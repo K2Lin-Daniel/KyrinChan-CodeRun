@@ -42,6 +42,7 @@ def main():
         print(f"Loading and scaling {path} to {target_upem} UPEM...")
         try:
             font = TTFont(path)
+            print(f"  sfntVersion: {repr(font.sfntVersion)}, Tables: {list(font.keys())}")
             # Scale to 1000 UPEM
             scale_upem(font, target_upem)
             # Save to a temporary file
@@ -87,7 +88,9 @@ def main():
         print(f"Merged font successfully saved to {output_path}")
         
     except Exception as e:
+        import traceback
         print(f"Error merging fonts: {e}")
+        traceback.print_exc()
         sys.exit(1)
     finally:
         # Clean up all temporary files
