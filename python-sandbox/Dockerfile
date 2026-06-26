@@ -42,7 +42,7 @@ RUN curl -sS -L -o fonts/Outfit-Regular.ttf "https://cdn.jsdelivr.net/fontsource
     curl -sS -L -o fonts/Outfit-Bold.ttf "https://cdn.jsdelivr.net/fontsource/fonts/outfit@latest/latin-700-normal.ttf"
 
 # Download static full Noto Sans SC Chinese font
-RUN curl -sS -L -o fonts/NotoSansSC-Regular.ttf "https://github.com/google/fonts/raw/main/ofl/notosanssc/static/NotoSansSC-Regular.ttf"
+RUN curl -sS -L -o fonts/NotoSansSC-Regular.ttf "https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-sc/files/noto-sans-sc-chinese-simplified-400-normal.ttf"
 
 # Download static Symbola font (Unicode Emoji)
 RUN curl -sS -L -o fonts/Symbola.ttf "https://github.com/ChiefMikeK/ttf-symbola/raw/master/Symbola.ttf"
