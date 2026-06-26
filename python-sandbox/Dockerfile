@@ -29,15 +29,13 @@ FROM python:3.11-slim as ephemeris_downloader
 
 WORKDIR /ephemeris
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl ca-certificates unzip && \
+    apt-get install -y --no-install-recommends curl ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 RUN curl -o de440.bsp https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de440.bsp && \
     curl -o de421.bsp https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de421.bsp
 
-# Download and extract Outfit font family
-RUN curl -sS -L -o outfit.zip "https://fonts.google.com/download?family=Outfit" && \
-    mkdir outfit && \
-    unzip outfit.zip -d outfit
+# Download Outfit variable font directly from google/fonts repository
+RUN curl -sS -L -o Outfit-VariableFont_wght.ttf "https://github.com/google/fonts/raw/main/ofl/outfit/Outfit%5Bwght%5D.ttf"
 
 
 # Stage 3: Runtime
@@ -60,7 +58,8 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy Outfit font from downloader
-COPY --from=ephemeris_downloader /ephemeris/outfit /usr/share/fonts/truetype/outfit
+RUN mkdir -p /usr/share/fonts/truetype/outfit
+COPY --from=ephemeris_downloader /ephemeris/Outfit-VariableFont_wght.ttf /usr/share/fonts/truetype/outfit/
 
 # Update system font cache
 RUN fc-cache -fv
