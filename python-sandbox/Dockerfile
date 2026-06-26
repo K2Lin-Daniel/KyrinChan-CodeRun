@@ -45,9 +45,6 @@ RUN curl -sS -L -o fonts/Outfit-Regular.ttf "https://cdn.jsdelivr.net/fontsource
 RUN curl -sS -L -o fonts/NotoSansSC-Regular.ttf "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-sc@latest/chinese-simplified-400-normal.ttf" && \
     curl -sS -L -o fonts/NotoSansSC-Bold.ttf "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-sc@latest/chinese-simplified-700-normal.ttf"
 
-# Download static Symbola font directly for vector-based emoji fallback
-RUN curl -sS -L -o fonts/Symbola.ttf "https://github.com/zhm/symbola/raw/master/fonts/Symbola.ttf"
-
 
 # Stage 3: Runtime
 FROM python:3.11-slim
@@ -59,9 +56,9 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Create a non-root user
 RUN useradd -m -s /bin/bash sandboxuser
 
-# Install fontconfig and lightweight Chinese font
+# Install fontconfig, lightweight Chinese font, and unicode Symbola font
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends fontconfig fonts-wqy-microhei && \
+    apt-get install -y --no-install-recommends fontconfig fonts-wqy-microhei fonts-symbola && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy custom fonts from downloader
@@ -73,8 +70,9 @@ RUN fc-cache -fv
 # Copy the virtual environment from the builder stage
 COPY --from=builder /opt/venv /opt/venv
 
-# Copy custom fonts to matplotlib's internal font directory
-RUN cp /usr/share/fonts/truetype/custom/*.ttf $(python -c "import os, matplotlib; print(os.path.join(os.path.dirname(matplotlib.matplotlib_fname()), 'fonts', 'ttf'))")
+# Copy custom and system-installed Symbola fonts to matplotlib's internal font directory
+RUN cp /usr/share/fonts/truetype/custom/*.ttf $(python -c "import os, matplotlib; print(os.path.join(os.path.dirname(matplotlib.matplotlib_fname()), 'fonts', 'ttf'))") && \
+    find /usr/share/fonts/ -name "Symbola.ttf" -exec cp {} $(python -c "import os, matplotlib; print(os.path.join(os.path.dirname(matplotlib.matplotlib_fname()), 'fonts', 'ttf'))") \;
 
 # Create matplotlib config directory for sandboxuser
 RUN mkdir -p /home/sandboxuser/.matplotlib && chown -R sandboxuser:sandboxuser /home/sandboxuser/.matplotlib
@@ -82,7 +80,7 @@ RUN mkdir -p /home/sandboxuser/.matplotlib && chown -R sandboxuser:sandboxuser /
 # Configure default fonts via matplotlibrc and prebuild matplotlib cache
 # This layer is run before application code copy so it is cached in GHA when code changes
 RUN echo "font.family: sans-serif" > /home/sandboxuser/.matplotlib/matplotlibrc && \
-    echo "font.sans-serif: Outfit, Noto Sans SC, WenQuanYi Micro Hei, Symbola, DejaVu Sans, Arial, Helvetica, sans-serif" >> /home/sandboxuser/.matplotlib/matplotlibrc && \
+    echo "font.sans-serif: Outfit, Symbola, Noto Sans SC, WenQuanYi Micro Hei, DejaVu Sans, Arial, Helvetica, sans-serif" >> /home/sandboxuser/.matplotlib/matplotlibrc && \
     echo "axes.unicode_minus: False" >> /home/sandboxuser/.matplotlib/matplotlibrc && \
     python -c "import matplotlib; import shutil; shutil.rmtree(matplotlib.get_cachedir(), ignore_errors=True)" && \
     MPLCONFIGDIR=/home/sandboxuser/.matplotlib python -c "import matplotlib.pyplot" && \
