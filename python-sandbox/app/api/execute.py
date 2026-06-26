@@ -94,10 +94,16 @@ except Exception:
         stdout_file = open(stdout_file_path, "w+", encoding="utf-8")
         stderr_file = open(stderr_file_path, "w+", encoding="utf-8")
 
-        # Setup environment variables for the subprocess
-        env = os.environ.copy()
-        env["MPLBACKEND"] = "Agg"
-        env["MPLCONFIGDIR"] = os.path.join(run_dir, ".matplotlib")
+        mpl_config_dir = os.path.join(run_dir, ".matplotlib")
+        env["MPLCONFIGDIR"] = mpl_config_dir
+
+        # Copy prebuilt matplotlib config and font cache if available to speed up execution
+        prebuilt_cache = "/home/sandboxuser/.matplotlib"
+        if os.path.isdir(prebuilt_cache):
+            try:
+                shutil.copytree(prebuilt_cache, mpl_config_dir)
+            except Exception:
+                pass
 
         process = subprocess.Popen(
             [sys.executable, runner_file_path],

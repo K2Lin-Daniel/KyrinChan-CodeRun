@@ -29,10 +29,15 @@ FROM python:3.11-slim as ephemeris_downloader
 
 WORKDIR /ephemeris
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl ca-certificates && \
+    apt-get install -y --no-install-recommends curl ca-certificates unzip && \
     rm -rf /var/lib/apt/lists/*
 RUN curl -o de440.bsp https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de440.bsp && \
     curl -o de421.bsp https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de421.bsp
+
+# Download and extract Outfit font family
+RUN curl -sS -L -o outfit.zip "https://fonts.google.com/download?family=Outfit" && \
+    mkdir outfit && \
+    unzip outfit.zip -d outfit
 
 
 # Stage 3: Runtime
@@ -45,16 +50,42 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Create a non-root user
 RUN useradd -m -s /bin/bash sandboxuser
 
-WORKDIR /app
+# Install system fonts, emoji packages, and fontconfig
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    fonts-noto-color-emoji \
+    fonts-noto-cjk \
+    fonts-symbola \
+    fontconfig && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy Outfit font from downloader
+COPY --from=ephemeris_downloader /ephemeris/outfit /usr/share/fonts/truetype/outfit
+
+# Update system font cache
+RUN fc-cache -fv
 
 # Copy the virtual environment from the builder stage
 COPY --from=builder /opt/venv /opt/venv
+
+# Create matplotlib config directory for sandboxuser
+RUN mkdir -p /home/sandboxuser/.matplotlib && chown -R sandboxuser:sandboxuser /home/sandboxuser/.matplotlib
+
+# Configure default fonts via matplotlibrc and prebuild matplotlib cache
+# This layer is run before application code copy so it is cached in GHA when code changes
+RUN echo "font.family: sans-serif" > /home/sandboxuser/.matplotlib/matplotlibrc && \
+    echo "font.sans-serif: Outfit, Noto Sans CJK SC, Symbola, DejaVu Sans, Arial, Helvetica, sans-serif" >> /home/sandboxuser/.matplotlib/matplotlibrc && \
+    echo "axes.unicode_minus: False" >> /home/sandboxuser/.matplotlib/matplotlibrc && \
+    chown sandboxuser:sandboxuser /home/sandboxuser/.matplotlib/matplotlibrc && \
+    MPLCONFIGDIR=/home/sandboxuser/.matplotlib python -c "import matplotlib.pyplot"
+
+WORKDIR /app
 
 # Copy application code
 COPY --chown=sandboxuser:sandboxuser app/ /app/
 
 # Copy ephemerides as an independent layer
-COPY --from=ephemeris_downloader --chown=sandboxuser:sandboxuser /ephemeris/ /app/
+COPY --from=ephemeris_downloader --chown=sandboxuser:sandboxuser /ephemeris/de440.bsp /ephemeris/de421.bsp /app/
 
 # Switch to the non-root user
 USER sandboxuser
