@@ -34,7 +34,7 @@ def main():
         else:
             processed_paths.append(path)
             
-    # 2. Rescale all input fonts to the same UPEM (1000)
+    # 2. Rescale and normalize all input fonts to the same UPEM (1000)
     temp_scaled_paths = []
     target_upem = 1000
     
@@ -43,8 +43,30 @@ def main():
         try:
             font = TTFont(path)
             print(f"  sfntVersion: {repr(font.sfntVersion)}, Tables: {list(font.keys())}")
+            
             # Scale to 1000 UPEM
             scale_upem(font, target_upem)
+            
+            # Normalize OS/2 table
+            if 'OS/2' in font:
+                os2 = font['OS/2']
+                os2.version = 4
+                defaults = {
+                    'ulCodePageRange1': 0,
+                    'ulCodePageRange2': 0,
+                    'sxHeight': 0,
+                    'sCapHeight': 0,
+                    'usDefaultChar': 0,
+                    'usBreakChar': 32,
+                    'usMaxContext': 0,
+                }
+                for attr, default_val in defaults.items():
+                    if not hasattr(os2, attr):
+                        setattr(os2, attr, default_val)
+                for attr in ['usLowerOpticalPointSize', 'usUpperOpticalPointSize']:
+                    if hasattr(os2, attr):
+                        delattr(os2, attr)
+                        
             # Save to a temporary file
             temp_path = f"temp_scaled_{i}.ttf"
             font.save(temp_path)
@@ -56,14 +78,40 @@ def main():
                 if os.path.exists(p):
                     os.remove(p)
             sys.exit(1)
+            
+    # 3. Find common tables and drop incompatible ones
+    try:
+        print("Filtering incompatible tables...")
+        fonts = [TTFont(p) for p in temp_scaled_paths]
+        common_tables = set(fonts[0].keys())
+        for font in fonts[1:]:
+            common_tables.intersection_update(font.keys())
+            
+        print(f"Common tables: {common_tables}")
+        
+        for i, font in enumerate(fonts):
+            for tag in list(font.keys()):
+                if tag not in common_tables:
+                    print(f"  Removing table {tag} from font {temp_scaled_paths[i]}")
+                    del font[tag]
+            font.save(temp_scaled_paths[i])
+            font.close()
+            
+    except Exception as e:
+        print(f"Error filtering tables: {e}")
+        # Clean up
+        for p in temp_scaled_paths + temp_ttfs:
+            if os.path.exists(p):
+                os.remove(p)
+        sys.exit(1)
         
     try:
-        # 3. Merge the rescaled fonts
+        # 4. Merge the rescaled fonts
         print("Merging rescaled fonts...")
         merger = Merger()
         merged_font = merger.merge(temp_scaled_paths)
         
-        # 4. Rename the merged font to "SandboxFont"
+        # 5. Rename the merged font to "SandboxFont"
         new_family_name = "SandboxFont"
         name_table = merged_font["name"]
         
@@ -83,7 +131,7 @@ def main():
         if out_dir and not os.path.exists(out_dir):
             os.makedirs(out_dir, exist_ok=True)
             
-        # 5. Save the merged font
+        # 6. Save the merged font
         merged_font.save(output_path)
         print(f"Merged font successfully saved to {output_path}")
         
