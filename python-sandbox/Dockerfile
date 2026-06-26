@@ -41,9 +41,16 @@ RUN mkdir -p fonts
 RUN curl -sS -L -o fonts/Outfit-Regular.ttf "https://cdn.jsdelivr.net/fontsource/fonts/outfit@latest/latin-400-normal.ttf" && \
     curl -sS -L -o fonts/Outfit-Bold.ttf "https://cdn.jsdelivr.net/fontsource/fonts/outfit@latest/latin-700-normal.ttf"
 
-# Download static Noto Sans SC Chinese fonts (to avoid TTC packaging issues in matplotlib)
-RUN curl -sS -L -o fonts/NotoSansSC-Regular.ttf "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-sc@latest/chinese-simplified-400-normal.ttf" && \
-    curl -sS -L -o fonts/NotoSansSC-Bold.ttf "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-sc@latest/chinese-simplified-700-normal.ttf"
+# Download static full Noto Sans SC Chinese font
+RUN curl -sS -L -o fonts/NotoSansSC-Regular.ttf "https://github.com/google/fonts/raw/main/ofl/notosanssc/static/NotoSansSC-Regular.ttf"
+
+# Download static Symbola font (Unicode Emoji)
+RUN curl -sS -L -o fonts/Symbola.ttf "https://github.com/ChiefMikeK/ttf-symbola/raw/master/Symbola.ttf"
+
+# Install fonttools, copy merge script and merge fonts into SandboxFont.ttf
+RUN pip install --no-cache-dir fonttools
+COPY merge_fonts.py .
+RUN python merge_fonts.py fonts/SandboxFont.ttf fonts/Outfit-Regular.ttf fonts/NotoSansSC-Regular.ttf fonts/Symbola.ttf
 
 
 # Stage 3: Runtime
@@ -56,9 +63,9 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Create a non-root user
 RUN useradd -m -s /bin/bash sandboxuser
 
-# Install fontconfig, lightweight Chinese font, and unicode Symbola font
+# Install fontconfig
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends fontconfig fonts-wqy-microhei fonts-symbola && \
+    apt-get install -y --no-install-recommends fontconfig && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy custom fonts from downloader
@@ -70,9 +77,8 @@ RUN fc-cache -fv
 # Copy the virtual environment from the builder stage
 COPY --from=builder /opt/venv /opt/venv
 
-# Copy custom and system-installed Symbola fonts to matplotlib's internal font directory
-RUN cp /usr/share/fonts/truetype/custom/*.ttf $(python -c "import os, matplotlib; print(os.path.join(os.path.dirname(matplotlib.matplotlib_fname()), 'fonts', 'ttf'))") && \
-    find /usr/share/fonts/ -name "Symbola.ttf" -exec cp {} $(python -c "import os, matplotlib; print(os.path.join(os.path.dirname(matplotlib.matplotlib_fname()), 'fonts', 'ttf'))") \;
+# Copy custom fonts to matplotlib's internal font directory
+RUN cp /usr/share/fonts/truetype/custom/*.ttf $(python -c "import os, matplotlib; print(os.path.join(os.path.dirname(matplotlib.matplotlib_fname()), 'fonts', 'ttf'))")
 
 # Create matplotlib config directory for sandboxuser
 RUN mkdir -p /home/sandboxuser/.matplotlib && chown -R sandboxuser:sandboxuser /home/sandboxuser/.matplotlib
@@ -80,7 +86,7 @@ RUN mkdir -p /home/sandboxuser/.matplotlib && chown -R sandboxuser:sandboxuser /
 # Configure default fonts via matplotlibrc and prebuild matplotlib cache
 # This layer is run before application code copy so it is cached in GHA when code changes
 RUN echo "font.family: sans-serif" > /home/sandboxuser/.matplotlib/matplotlibrc && \
-    echo "font.sans-serif: Outfit, Symbola, Noto Sans SC, WenQuanYi Micro Hei, DejaVu Sans, Arial, Helvetica, sans-serif" >> /home/sandboxuser/.matplotlib/matplotlibrc && \
+    echo "font.sans-serif: SandboxFont, DejaVu Sans, Arial, Helvetica, sans-serif" >> /home/sandboxuser/.matplotlib/matplotlibrc && \
     echo "axes.unicode_minus: False" >> /home/sandboxuser/.matplotlib/matplotlibrc && \
     python -c "import matplotlib; import shutil; shutil.rmtree(matplotlib.get_cachedir(), ignore_errors=True)" && \
     MPLCONFIGDIR=/home/sandboxuser/.matplotlib python -c "import matplotlib.pyplot" && \
