@@ -59,9 +59,9 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Create a non-root user
 RUN useradd -m -s /bin/bash sandboxuser
 
-# Install fontconfig (to register custom fonts in system cache)
+# Install fontconfig and lightweight Chinese font
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends fontconfig && \
+    apt-get install -y --no-install-recommends fontconfig fonts-wqy-microhei && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy custom fonts from downloader
@@ -73,14 +73,18 @@ RUN fc-cache -fv
 # Copy the virtual environment from the builder stage
 COPY --from=builder /opt/venv /opt/venv
 
+# Copy custom fonts to matplotlib's internal font directory
+RUN cp /usr/share/fonts/truetype/custom/*.ttf $(python -c "import os, matplotlib; print(os.path.join(os.path.dirname(matplotlib.matplotlib_fname()), 'fonts', 'ttf'))")
+
 # Create matplotlib config directory for sandboxuser
 RUN mkdir -p /home/sandboxuser/.matplotlib && chown -R sandboxuser:sandboxuser /home/sandboxuser/.matplotlib
 
 # Configure default fonts via matplotlibrc and prebuild matplotlib cache
 # This layer is run before application code copy so it is cached in GHA when code changes
 RUN echo "font.family: sans-serif" > /home/sandboxuser/.matplotlib/matplotlibrc && \
-    echo "font.sans-serif: Outfit, Noto Sans SC, Symbola, DejaVu Sans, Arial, Helvetica, sans-serif" >> /home/sandboxuser/.matplotlib/matplotlibrc && \
+    echo "font.sans-serif: Outfit, Noto Sans SC, WenQuanYi Micro Hei, Symbola, DejaVu Sans, Arial, Helvetica, sans-serif" >> /home/sandboxuser/.matplotlib/matplotlibrc && \
     echo "axes.unicode_minus: False" >> /home/sandboxuser/.matplotlib/matplotlibrc && \
+    python -c "import matplotlib; import shutil; shutil.rmtree(matplotlib.get_cachedir(), ignore_errors=True)" && \
     MPLCONFIGDIR=/home/sandboxuser/.matplotlib python -c "import matplotlib.pyplot" && \
     chown -R sandboxuser:sandboxuser /home/sandboxuser/.matplotlib
 

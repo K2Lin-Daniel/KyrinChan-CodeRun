@@ -97,16 +97,12 @@ except Exception:
         # Setup environment variables for the subprocess
         env = os.environ.copy()
         env["MPLBACKEND"] = "Agg"
-        mpl_config_dir = os.path.join(run_dir, ".matplotlib")
-        env["MPLCONFIGDIR"] = mpl_config_dir
-
-        # Copy prebuilt matplotlib config and font cache if available to speed up execution
-        prebuilt_cache = "/home/sandboxuser/.matplotlib"
-        if os.path.isdir(prebuilt_cache):
-            try:
-                shutil.copytree(prebuilt_cache, mpl_config_dir, copy_function=shutil.copy)
-            except Exception:
-                pass
+        # Use shared writable matplotlib config directory if available, fallback to task-specific dir
+        shared_cache = "/tmp/.matplotlib"
+        if os.path.isdir(shared_cache):
+            env["MPLCONFIGDIR"] = shared_cache
+        else:
+            env["MPLCONFIGDIR"] = os.path.join(run_dir, ".matplotlib")
 
         process = subprocess.Popen(
             [sys.executable, runner_file_path],
