@@ -38,14 +38,15 @@ RUN curl -o de440.bsp https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de440.bsp && 
 RUN mkdir -p fonts
 
 # Download static Outfit fonts (to avoid variable font incompatibility in matplotlib)
-RUN curl -sS -L -o fonts/Outfit-Regular.ttf "https://cdn.jsdelivr.net/fontsource/fonts/outfit@latest/latin-400-normal.ttf" && \
-    curl -sS -L -o fonts/Outfit-Bold.ttf "https://cdn.jsdelivr.net/fontsource/fonts/outfit@latest/latin-700-normal.ttf"
+RUN curl -sS -L -f -o fonts/Outfit-Regular.ttf "https://cdn.jsdelivr.net/fontsource/fonts/outfit@latest/latin-400-normal.ttf" && \
+    curl -sS -L -f -o fonts/Outfit-Bold.ttf "https://cdn.jsdelivr.net/fontsource/fonts/outfit@latest/latin-700-normal.ttf"
 
-# Download static full Noto Sans SC Chinese font
-RUN curl -sS -L -o fonts/NotoSansSC-Regular.ttf "https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-sc/files/noto-sans-sc-chinese-simplified-400-normal.ttf"
+# Download static Noto Sans SC Chinese fonts (to avoid TTC packaging issues in matplotlib)
+RUN curl -sS -L -f -o fonts/NotoSansSC-Regular.ttf "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-sc@latest/chinese-simplified-400-normal.ttf" && \
+    curl -sS -L -f -o fonts/NotoSansSC-Bold.ttf "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-sc@latest/chinese-simplified-700-normal.ttf"
 
-# Download static Symbola font (Unicode Emoji)
-RUN curl -sS -L -o fonts/Symbola.ttf "https://github.com/ChiefMikeK/ttf-symbola/raw/master/Symbola.ttf"
+# Download static Symbola font directly for vector-based emoji fallback
+RUN curl -sS -L -f -o fonts/Symbola.ttf "https://github.com/ChiefMikeK/ttf-symbola/raw/master/Symbola.ttf"
 
 # Install fonttools, copy merge script and merge fonts into SandboxFont.ttf
 RUN pip install --no-cache-dir fonttools

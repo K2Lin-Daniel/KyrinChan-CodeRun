@@ -1,6 +1,6 @@
 import sys
 import os
-from fontTools.ttLib import TTFont
+from fontTools.ttLib import TTFont, TTCollection
 from fontTools.ttLib.scaleUpem import scale_upem
 from fontTools.merge import Merger
 
@@ -12,14 +12,33 @@ def main():
     output_path = sys.argv[1]
     input_paths = sys.argv[2:]
     
-    print(f"Loading input fonts: {input_paths}")
+    print(f"Input paths: {input_paths}")
     
-    # 1. Rescale all input fonts to the same UPEM (1000)
-    rescaled_fonts = []
-    temp_paths = []
-    target_upem = 1000
+    # 1. Handle TrueType Collections (.ttc) by extracting to temporary .ttf files
+    processed_paths = []
+    temp_ttfs = []
     
     for i, path in enumerate(input_paths):
+        if path.lower().endswith('.ttc'):
+            print(f"Extracting font from collection {path}...")
+            try:
+                ttc = TTCollection(path)
+                font = ttc[0]  # Get the first font in the collection
+                temp_ttf = f"temp_extracted_{i}.ttf"
+                font.save(temp_ttf)
+                processed_paths.append(temp_ttf)
+                temp_ttfs.append(temp_ttf)
+            except Exception as e:
+                print(f"Error extracting from collection {path}: {e}")
+                sys.exit(1)
+        else:
+            processed_paths.append(path)
+            
+    # 2. Rescale all input fonts to the same UPEM (1000)
+    temp_scaled_paths = []
+    target_upem = 1000
+    
+    for i, path in enumerate(processed_paths):
         print(f"Loading and scaling {path} to {target_upem} UPEM...")
         try:
             font = TTFont(path)
@@ -28,22 +47,22 @@ def main():
             # Save to a temporary file
             temp_path = f"temp_scaled_{i}.ttf"
             font.save(temp_path)
-            temp_paths.append(temp_path)
+            temp_scaled_paths.append(temp_path)
         except Exception as e:
             print(f"Error scaling font {path}: {e}")
-            # Clean up and exit
-            for p in temp_paths:
+            # Clean up
+            for p in temp_scaled_paths + temp_ttfs:
                 if os.path.exists(p):
                     os.remove(p)
             sys.exit(1)
         
     try:
-        # 2. Merge the rescaled fonts
+        # 3. Merge the rescaled fonts
         print("Merging rescaled fonts...")
         merger = Merger()
-        merged_font = merger.merge(temp_paths)
+        merged_font = merger.merge(temp_scaled_paths)
         
-        # 3. Rename the merged font to "SandboxFont"
+        # 4. Rename the merged font to "SandboxFont"
         new_family_name = "SandboxFont"
         name_table = merged_font["name"]
         
@@ -58,7 +77,12 @@ def main():
         name_table.setName(f"{new_family_name} Regular", 4, 1, 0, 0)  # Mac Full name
         name_table.setName(f"{new_family_name}-Regular", 6, 1, 0, 0)  # Mac Postscript name
         
-        # 4. Save the merged font
+        # Make sure directory exists
+        out_dir = os.path.dirname(output_path)
+        if out_dir and not os.path.exists(out_dir):
+            os.makedirs(out_dir, exist_ok=True)
+            
+        # 5. Save the merged font
         merged_font.save(output_path)
         print(f"Merged font successfully saved to {output_path}")
         
@@ -66,8 +90,8 @@ def main():
         print(f"Error merging fonts: {e}")
         sys.exit(1)
     finally:
-        # Clean up temporary rescaled files
-        for path in temp_paths:
+        # Clean up all temporary files
+        for path in temp_scaled_paths + temp_ttfs:
             if os.path.exists(path):
                 os.remove(path)
 
