@@ -104,7 +104,7 @@ except Exception:
         prebuilt_cache = "/home/sandboxuser/.matplotlib"
         if os.path.isdir(prebuilt_cache):
             try:
-                shutil.copytree(prebuilt_cache, mpl_config_dir)
+                shutil.copytree(prebuilt_cache, mpl_config_dir, copy_function=shutil.copy)
             except Exception:
                 pass
 

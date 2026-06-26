@@ -34,8 +34,19 @@ RUN apt-get update && \
 RUN curl -o de440.bsp https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de440.bsp && \
     curl -o de421.bsp https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de421.bsp
 
-# Download Outfit variable font directly from google/fonts repository
-RUN curl -sS -L -o Outfit-VariableFont_wght.ttf "https://github.com/google/fonts/raw/main/ofl/outfit/Outfit%5Bwght%5D.ttf"
+# Create directory for custom static fonts
+RUN mkdir -p fonts
+
+# Download static Outfit fonts (to avoid variable font incompatibility in matplotlib)
+RUN curl -sS -L -o fonts/Outfit-Regular.ttf "https://cdn.jsdelivr.net/fontsource/fonts/outfit@latest/latin-400-normal.ttf" && \
+    curl -sS -L -o fonts/Outfit-Bold.ttf "https://cdn.jsdelivr.net/fontsource/fonts/outfit@latest/latin-700-normal.ttf"
+
+# Download static Noto Sans SC Chinese fonts (to avoid TTC packaging issues in matplotlib)
+RUN curl -sS -L -o fonts/NotoSansSC-Regular.ttf "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-sc@latest/chinese-simplified-400-normal.ttf" && \
+    curl -sS -L -o fonts/NotoSansSC-Bold.ttf "https://cdn.jsdelivr.net/fontsource/fonts/noto-sans-sc@latest/chinese-simplified-700-normal.ttf"
+
+# Download static Symbola font directly for vector-based emoji fallback
+RUN curl -sS -L -o fonts/Symbola.ttf "https://github.com/zhm/symbola/raw/master/Symbola.ttf"
 
 
 # Stage 3: Runtime
@@ -48,18 +59,13 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Create a non-root user
 RUN useradd -m -s /bin/bash sandboxuser
 
-# Install system fonts, emoji packages, and fontconfig
+# Install fontconfig (to register custom fonts in system cache)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    fonts-noto-color-emoji \
-    fonts-noto-cjk \
-    fonts-symbola \
-    fontconfig && \
+    apt-get install -y --no-install-recommends fontconfig && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy Outfit font from downloader
-RUN mkdir -p /usr/share/fonts/truetype/outfit
-COPY --from=ephemeris_downloader /ephemeris/Outfit-VariableFont_wght.ttf /usr/share/fonts/truetype/outfit/
+# Copy custom fonts from downloader
+COPY --from=ephemeris_downloader /ephemeris/fonts /usr/share/fonts/truetype/custom
 
 # Update system font cache
 RUN fc-cache -fv
@@ -73,10 +79,10 @@ RUN mkdir -p /home/sandboxuser/.matplotlib && chown -R sandboxuser:sandboxuser /
 # Configure default fonts via matplotlibrc and prebuild matplotlib cache
 # This layer is run before application code copy so it is cached in GHA when code changes
 RUN echo "font.family: sans-serif" > /home/sandboxuser/.matplotlib/matplotlibrc && \
-    echo "font.sans-serif: Outfit, Noto Sans CJK SC, Symbola, DejaVu Sans, Arial, Helvetica, sans-serif" >> /home/sandboxuser/.matplotlib/matplotlibrc && \
+    echo "font.sans-serif: Outfit, Noto Sans SC, Symbola, DejaVu Sans, Arial, Helvetica, sans-serif" >> /home/sandboxuser/.matplotlib/matplotlibrc && \
     echo "axes.unicode_minus: False" >> /home/sandboxuser/.matplotlib/matplotlibrc && \
-    chown sandboxuser:sandboxuser /home/sandboxuser/.matplotlib/matplotlibrc && \
-    MPLCONFIGDIR=/home/sandboxuser/.matplotlib python -c "import matplotlib.pyplot"
+    MPLCONFIGDIR=/home/sandboxuser/.matplotlib python -c "import matplotlib.pyplot" && \
+    chown -R sandboxuser:sandboxuser /home/sandboxuser/.matplotlib
 
 WORKDIR /app
 
