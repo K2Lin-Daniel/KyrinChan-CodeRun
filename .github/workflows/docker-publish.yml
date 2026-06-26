@@ -4,6 +4,9 @@ on:
   push:
     branches: [ "main" ] # 当推送到 main 分支时触发
     tags: [ 'v*.*.*' ]    # 当推送版本标签时触发
+    paths:
+      - 'python-sandbox/**'
+      - '.github/workflows/docker-publish.yml'
 
 env:
   REGISTRY: ghcr.io

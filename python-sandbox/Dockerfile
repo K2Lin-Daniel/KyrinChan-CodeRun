@@ -80,11 +80,11 @@ RUN echo "font.family: sans-serif" > /home/sandboxuser/.matplotlib/matplotlibrc 
 
 WORKDIR /app
 
-# Copy application code
-COPY --chown=sandboxuser:sandboxuser app/ /app/
-
 # Copy ephemerides as an independent layer
 COPY --from=ephemeris_downloader --chown=sandboxuser:sandboxuser /ephemeris/de440.bsp /ephemeris/de421.bsp /app/
+
+# Copy application code
+COPY --chown=sandboxuser:sandboxuser app/ /app/
 
 # Switch to the non-root user
 USER sandboxuser
