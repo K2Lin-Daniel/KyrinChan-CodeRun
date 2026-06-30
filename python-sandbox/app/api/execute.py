@@ -64,6 +64,115 @@ try:
 except Exception as e:
     print(f"Warning: Failed to set resource limits: {{e}}", file=sys.stderr)
 
+# Override user-specified fonts in matplotlib to ensure manually merged font is used
+try:
+    import matplotlib
+    import matplotlib.font_manager
+    import inspect
+
+    # 1. Configure defaults
+    matplotlib.rcParams['font.family'] = 'sans-serif'
+    matplotlib.rcParams['font.sans-serif'] = ['SandboxFont', 'DejaVu Sans', 'Arial', 'Helvetica', 'sans-serif']
+    matplotlib.rcParams['axes.unicode_minus'] = False
+
+    if hasattr(matplotlib, 'rcParamsDefault'):
+        matplotlib.rcParamsDefault['font.family'] = 'sans-serif'
+        matplotlib.rcParamsDefault['font.sans-serif'] = ['SandboxFont', 'DejaVu Sans', 'Arial', 'Helvetica', 'sans-serif']
+        matplotlib.rcParamsDefault['axes.unicode_minus'] = False
+
+    # Keep original methods
+    orig_setitem = matplotlib.RcParams.__setitem__
+    orig_update = matplotlib.RcParams.update
+    orig_setdefault = matplotlib.RcParams.setdefault
+    orig_pop = matplotlib.RcParams.pop
+
+    # 2. Patch RcParams to block any attempts to change font keys
+    def patched_setitem(self, key, val):
+        if key.startswith('font.') or key == 'font':
+            return
+        orig_setitem(self, key, val)
+    matplotlib.RcParams.__setitem__ = patched_setitem
+
+    def patched_update(self, *args, **kwargs):
+        new_args = []
+        if args:
+            arg = args[0]
+            if hasattr(arg, 'keys'):
+                filtered_arg = {{k: v for k, v in arg.items() if not (k.startswith('font.') or k == 'font')}}
+            else:
+                filtered_arg = [(k, v) for k, v in arg if not (k.startswith('font.') or k == 'font')]
+            new_args.append(filtered_arg)
+        new_kwargs = {{k: v for k, v in kwargs.items() if not (k.startswith('font.') or k == 'font')}}
+        orig_update(self, *new_args, **new_kwargs)
+    matplotlib.RcParams.update = patched_update
+
+    def patched_setdefault(self, key, default=None):
+        if key.startswith('font.') or key == 'font':
+            return self.get(key)
+        return orig_setdefault(self, key, default)
+    matplotlib.RcParams.setdefault = patched_setdefault
+
+    def patched_pop(self, key, *args):
+        if key.startswith('font.') or key == 'font':
+            return self.get(key)
+        return orig_pop(self, key, *args)
+    matplotlib.RcParams.pop = patched_pop
+
+    def restore_our_fonts():
+        orig_setitem(matplotlib.rcParams, 'font.family', 'sans-serif')
+        orig_setitem(matplotlib.rcParams, 'font.sans-serif', ['SandboxFont', 'DejaVu Sans', 'Arial', 'Helvetica', 'sans-serif'])
+        orig_setitem(matplotlib.rcParams, 'axes.unicode_minus', False)
+        if hasattr(matplotlib, 'rcParamsDefault'):
+            orig_setitem(matplotlib.rcParamsDefault, 'font.family', 'sans-serif')
+            orig_setitem(matplotlib.rcParamsDefault, 'font.sans-serif', ['SandboxFont', 'DejaVu Sans', 'Arial', 'Helvetica', 'sans-serif'])
+            orig_setitem(matplotlib.rcParamsDefault, 'axes.unicode_minus', False)
+
+    # 3. Patch rcdefaults to restore our fonts
+    orig_rcdefaults = matplotlib.rcdefaults
+    def patched_rcdefaults():
+        orig_rcdefaults()
+        restore_our_fonts()
+    matplotlib.rcdefaults = patched_rcdefaults
+
+    # 4. Patch FontProperties to override family/fname during instantiation
+    FontProperties = matplotlib.font_manager.FontProperties
+    orig_fp_init = FontProperties.__init__
+    orig_set_family = FontProperties.set_family if hasattr(FontProperties, 'set_family') else None
+    orig_set_fname = FontProperties.set_fname if hasattr(FontProperties, 'set_fname') else None
+    orig_set_file = FontProperties.set_file if hasattr(FontProperties, 'set_file') else None
+
+    def patched_fp_init(self, *args, **kwargs):
+        orig_fp_init(self, *args, **kwargs)
+        if orig_set_family:
+            orig_set_family(self, 'sans-serif')
+        if orig_set_fname:
+            orig_set_fname(self, None)
+        elif orig_set_file:
+            orig_set_file(self, None)
+
+    FontProperties.__init__ = patched_fp_init
+
+    # 5. Patch FontProperties setters to force target values
+    if hasattr(FontProperties, 'set_family'):
+        FontProperties.set_family = lambda self, family: orig_set_family(self, 'sans-serif')
+
+    if hasattr(FontProperties, 'set_fontname'):
+        orig_set_fontname = FontProperties.set_fontname
+        FontProperties.set_fontname = lambda self, family: orig_set_fontname(self, 'sans-serif')
+
+    if hasattr(FontProperties, 'set_name'):
+        orig_set_name = FontProperties.set_name
+        FontProperties.set_name = lambda self, family: orig_set_name(self, 'sans-serif')
+
+    if hasattr(FontProperties, 'set_fname'):
+        FontProperties.set_fname = lambda self, fname: orig_set_fname(self, None)
+
+    if hasattr(FontProperties, 'set_file'):
+        FontProperties.set_file = lambda self, fname: orig_set_file(self, None)
+
+except Exception as e:
+    print("Warning: Failed to override matplotlib fonts:", e, file=sys.stderr)
+
 # Execute user code
 try:
     runpy.run_path({repr(code_file_path)}, run_name="__main__")
