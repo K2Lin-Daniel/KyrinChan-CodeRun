@@ -115,6 +115,13 @@ def main():
         new_family_name = "SandboxFont"
         name_table = merged_font["name"]
         
+        # Remove conflicting name records that could override family name
+        records_to_keep = []
+        for r in name_table.names:
+            if r.nameID not in (16, 17, 18, 21, 22, 25):
+                records_to_keep.append(r)
+        name_table.names = records_to_keep
+        
         # Update name records to use SandboxFont name
         name_table.setName(new_family_name, 1, 3, 1, 0x409)  # Family name
         name_table.setName("Regular", 2, 3, 1, 0x409)       # Subfamily name
